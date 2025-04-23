@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Movie Recommendation System</title>
+  <style>
+    :root {
+      --primary: #4a90e2;
+      --background: #f4f6f8;
+      --text-dark: #1f2d3d;
+      --card-bg: #ffffff;
+      --shadow: rgba(0, 0, 0, 0.1);
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: var(--background);
+      color: var(--text-dark);
+      margin: 0;
+      padding: 2rem;
+      max-width: 1200px;
+      margin: auto;
+      overflow-x: hidden;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 2rem;
+      color: var(--primary);
+      animation: fadeInDown 0.8s ease-in-out;
+    }
+
+    .filters {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+      animation: fadeIn 1s ease-in-out;
+    }
+
+    .filters input,
+    .filters select,
+    .filters button {
+      padding: 0.6rem;
+      font-size: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      transition: all 0.3s ease;
+    }
+
+    .filters input:focus,
+    .filters select:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 5px var(--primary);
+    }
+
+    .filters button {
+      background-color: var(--primary);
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+
+    .filters button:hover {
+      background-color: #357ab7;
+    }
+
+    .movie {
+      background-color: var(--card-bg);
+      padding: 1rem;
+      margin-bottom: 1rem;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px var(--shadow);
+      animation: fadeInUp 0.6s ease forwards;
+      opacity: 0;
+    }
+
+    .movie h3 {
+      margin-top: 0;
+      color: var(--primary);
+    }
+
+    .movie p {
+      margin: 0.4rem 0;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes fadeInDown {
+      from { opacity: 0; transform: translateY(-20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Movie Recommendation System</h1>
+
+  <div class="filters">
+    <input type="text" id="genre" placeholder="Genre (e.g. Action)">
+    <input type="text" id="director" placeholder="Director (e.g. Nolan)">
+    <input type="number" id="rating" placeholder="Min Rating" step="0.1" min="0" max="10">
+    <input type="text" id="star" placeholder="Star (e.g. DiCaprio)">
+    <input type="number" id="year" placeholder="Year (e.g. 2010)">
+    <select id="sort">
+      <option value="">Sort by</option>
+      <option value="rating">Rating (High to Low)</option>
+      <option value="name">Name (A-Z)</option>
+    </select>
+    <button onclick="applyFilters()">Search</button>
+  </div>
+
+  <div id="movie-list"></div>
+
+  <script>
+    let movies = [];
+
+    async function loadCSV() {
+      const response = await fetch("imdb_top_1000.csv");
+      const text = await response.text();
+
+      const rows = text.split("\n").slice(1);
+      movies = rows.map(row => {
+        const cols = row.match(/(".*?"|[^",\s]+)(?=,|$)/g);
+        if (!cols || cols.length < 16) return null;
+
+        return {
+          name: cols[1]?.replace(/^"|"$/g, ''),
+          year: parseInt(cols[2]) || null,
+          genre: cols[5]?.replace(/^"|"$/g, ''),
+          rating: parseFloat(cols[6]) || 0,
+          director: cols[9]?.replace(/^"|"$/g, ''),
+          star: cols[10]?.replace(/^"|"$/g, '')
+        };
+      }).filter(m => m && m.name);
+
+      displayMovies(movies);
+    }
+
+    function applyFilters() {
+      const genre = document.getElementById("genre").value.toLowerCase();
+      const director = document.getElementById("director").value.toLowerCase();
+      const rating = parseFloat(document.getElementById("rating").value);
+      const star = document.getElementById("star").value.toLowerCase();
+      const year = parseInt(document.getElementById("year").value);
+      const sortBy = document.getElementById("sort").value;
+
+      let filtered = movies.filter(movie => {
+        return (!genre || movie.genre.toLowerCase().includes(genre)) &&
+               (!director || movie.director.toLowerCase().includes(director)) &&
+               (!isNaN(rating) ? movie.rating >= rating : true) &&
+               (!star || movie.star.toLowerCase().includes(star)) &&
+               (!isNaN(year) ? movie.year === year : true);
+      });
+
+      if (sortBy === "rating") {
+        filtered.sort((a, b) => b.rating - a.rating);
+      } else if (sortBy === "name") {
+        filtered.sort((a, b) => a.name.localeCompare(b.name));
+      }
+
+      displayMovies(filtered);
+    }
+
+    function displayMovies(list) {
+      const container = document.getElementById("movie-list");
+      container.innerHTML = "";
+
+      if (list.length === 0) {
+        container.innerHTML = "<p>No movies found matching your criteria.</p>";
+        return;
+      }
+
+      list.forEach((movie, index) => {
+        const div = document.createElement("div");
+        div.className = "movie";
+        div.style.animationDelay = `${index * 0.1}s`;
+        div.innerHTML = `
+          <h3>${movie.name}</h3>
+          <p><strong>Genre:</strong> ${movie.genre}</p>
+          <p><strong>Director:</strong> ${movie.director}</p>
+          <p><strong>Star:</strong> ${movie.star}</p>
+          <p><strong>Year:</strong> ${movie.year}</p>
+          <p><strong>IMDb Rating:</strong> ${movie.rating}</p>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    loadCSV();
+  </script>
+
+</body>
+</html>
